@@ -1,9 +1,6 @@
 version: '3.8'
 
 services:
-  # ============================================
-  # ZOOKEEPER - Gerenciador do Kafka
-  # ============================================
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: bankmore-zookeeper
@@ -20,9 +17,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # ============================================
-  # KAFKA - Message Broker
-  # ============================================
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: bankmore-kafka
@@ -48,9 +42,6 @@ services:
       timeout: 10s
       retries: 5
 
-  # ============================================
-  # API CONTA CORRENTE
-  # ============================================
   api-conta-corrente:
     build:
       context: .
@@ -81,9 +72,6 @@ services:
       retries: 3
       start_period: 40s
 
-  # ============================================
-  # API TRANSFERÊNCIA
-  # ============================================
   api-transferencia:
     build:
       context: .
@@ -117,9 +105,6 @@ services:
       retries: 3
       start_period: 40s
 
-  # ============================================
-  # WORKER TARIFAS
-  # ============================================
   worker-tarifas:
     build:
       context: .
@@ -141,16 +126,10 @@ services:
       kafka:
         condition: service_healthy
 
-# ============================================
-# REDE COMPARTILHADA
-# ============================================
 networks:
   bankmore-network:
     driver: bridge
 
-# ============================================
-# VOLUMES PERSISTENTES
-# ============================================
 volumes:
   contacorrente-data:
   transferencia-data:
