@@ -2,7 +2,7 @@
 
 Sistema de gerenciamento bancário desenvolvido em .NET 8 com arquitetura de microsserviços, CQRS, DDD e comunicação assíncrona via Kafka.
 
-## 🏗️ Arquitetura
+## Arquitetura
 
 ### Tecnologias
 - **.NET 8** - Framework principal
@@ -52,7 +52,7 @@ Sistema de gerenciamento bancário desenvolvido em .NET 8 com arquitetura de mic
 
 ---
 
-## 🚀 Como Executar
+## Como Executar
 
 ### Pré-requisitos
 - Docker Desktop
