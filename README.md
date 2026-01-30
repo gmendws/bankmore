@@ -1,91 +1,65 @@
 # BankMore - Sistema Bancário com Microsserviços
 
-Sistema de gerenciamento bancário desenvolvido em .NET 8 com arquitetura de microsserviços, CQRS, DDD e comunicação assíncrona via Kafka.
+Sistema de gerenciamento bancário desenvolvido em .NET 8, implementando arquitetura de microsserviços com comunicação assíncrona via Kafka. O projeto demonstra a aplicação prática de padrões como CQRS, DDD e Clean Architecture em um contexto bancário simplificado.
 
-## Arquitetura
+## Visão Geral da Arquitetura
 
-### Tecnologias
-- **.NET 8** - Framework principal
-- **Clean Architecture** - Separação de responsabilidades
-- **DDD** (Domain-Driven Design) - Modelagem de domínio
-- **CQRS** (MediatR) - Separação de Commands e Queries
-- **Dapper** - Micro-ORM para acesso a dados
-- **SQLite** - Banco de dados
-- **Kafka** - Message broker para comunicação assíncrona
-- **JWT** - Autenticação e autorização
-- **Docker** - Containerização
-- **Swagger** - Documentação de APIs
-- **xUnit + Moq + FluentAssertions** - Testes unitários
+O sistema é composto por três serviços independentes que se comunicam de forma assíncrona:
 
-### Microsserviços
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     API CONTA CORRENTE                       │
-│  - Cadastro de contas                                        │
-│  - Autenticação (Login/JWT)                                  │
-│  - Movimentações (Crédito/Débito)                           │
-│  - Consulta de saldo                                         │
-│  - Inativação de contas                                      │
-│  - Consumer Kafka: Tarifações realizadas                    │
-└─────────────────────────────────────────────────────────────┘
-                              ▲
-                              │ HTTP + JWT
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    API TRANSFERÊNCIA                          │
-│  - Transferências entre contas                              │
-│  - Validação de saldo                                        │
-│  - Estorno automático em caso de falha                       │
-│  - Producer Kafka: Transferências realizadas                │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              │ Kafka
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      WORKER TARIFAS                          │
-│  - Consumer: Transferências realizadas                      │
-│  - Processamento de tarifas (R$ 2,00)                       │
-│  - Persistência no banco                                     │
-│  - Producer: Tarifações realizadas                          │
-└─────────────────────────────────────────────────────────────┘
-```
+**API Conta Corrente**
+- Gerenciamento completo de contas (cadastro, autenticação, movimentações)
+- Consulta de saldo e extrato
+- Consumidor Kafka: processa tarifações realizadas
 
----
+**API Transferência**
+- Processamento de transferências entre contas
+- Validação de saldo e estorno automático em caso de falha
+- Produtor Kafka: publica eventos de transferência
 
-## Como Executar
+**Worker Tarifas**
+- Processamento assíncrono de tarifas
+- Consome eventos de transferência
+- Aplica tarifa de R$ 2,00 por operação
+- Publica eventos de tarifação concluída
+
+### Stack Tecnológica
+
+- .NET 8 / C#
+- SQLite (banco de dados)
+- Dapper (micro-ORM)
+- MediatR (implementação CQRS)
+- Kafka + KafkaFlow (mensageria)
+- JWT (autenticação)
+- BCrypt (criptografia de senhas)
+- xUnit + Moq + FluentAssertions (testes)
+- Docker / Docker Compose
+
+## Executando o Projeto
 
 ### Pré-requisitos
-- Docker Desktop
-- Docker Compose
 
-### Subir todos os serviços
+- Docker Desktop instalado e em execução
+
+### Iniciar os serviços
+
 ```bash
-# Na raiz do projeto
 docker-compose up --build
 ```
 
-Aguarde todos os containers iniciarem (health checks):
-- ✅ Zookeeper
-- ✅ Kafka
-- ✅ API Conta Corrente
-- ✅ API Transferência
-- ✅ Worker Tarifas
+O comando irá subir todos os containers necessários: Zookeeper, Kafka e os três microsserviços. Aguarde os health checks confirmarem que todos os serviços estão prontos.
 
-### Acessar as APIs
+**URLs de acesso:**
+- API Conta Corrente: http://localhost:5001/swagger
+- API Transferência: http://localhost:5002/swagger
 
-- **API Conta Corrente**: http://localhost:5001
-- **API Transferência**: http://localhost:5002
+## Fluxo de Uso
 
-Ambas abrem automaticamente no Swagger.
+### 1. Cadastrar uma conta
 
----
+```http
+POST /api/conta-corrente/cadastrar
+Content-Type: application/json
 
-## 📖 Guia de Uso
-
-### 1️⃣ Cadastrar Conta
-
-**POST** `/api/conta-corrente/cadastrar`
-```json
 {
   "cpf": "12345678909",
   "nome": "João Silva",
@@ -93,26 +67,26 @@ Ambas abrem automaticamente no Swagger.
 }
 ```
 
-**Resposta:**
+Resposta:
 ```json
 {
   "numeroConta": 1
 }
 ```
 
----
+### 2. Autenticar
 
-### 2️⃣ Fazer Login
+```http
+POST /api/conta-corrente/login
+Content-Type: application/json
 
-**POST** `/api/conta-corrente/login`
-```json
 {
   "cpfOuNumeroConta": "12345678909",
   "senha": "senha123"
 }
 ```
 
-**Resposta:**
+Resposta:
 ```json
 {
   "token": "eyJhbGc...",
@@ -120,57 +94,40 @@ Ambas abrem automaticamente no Swagger.
 }
 ```
 
-**⚠️ Copie o token!** Será necessário para as próximas requisições.
+**Importante:** Use o token retornado no header `Authorization: Bearer {token}` nas próximas requisições. No Swagger, clique em "Authorize" e cole o token.
 
----
+### 3. Adicionar saldo
 
-### 3️⃣ Autorizar no Swagger
+```http
+POST /api/conta-corrente/movimentacao
+Authorization: Bearer {seu-token}
+Content-Type: application/json
 
-1. Clique no botão **"Authorize"** 🔒
-2. Cole o **token** (sem "Bearer")
-3. Clique **"Authorize"**
-
----
-
-### 4️⃣ Adicionar Saldo
-
-**POST** `/api/conta-corrente/movimentacao`
-```json
 {
   "idempotenciaKey": "credito-inicial-001",
-  "idContaCorrente": null,
-  "numeroConta": null,
   "tipoMovimento": 0,
   "valor": 1000.00
 }
 ```
 
-`tipoMovimento`: `0` = Crédito, `1` = Débito
+> `tipoMovimento`: 0 = Crédito | 1 = Débito
 
----
+### 4. Consultar saldo
 
-### 5️⃣ Consultar Saldo
-
-**GET** `/api/conta-corrente/saldo`
-
-**Resposta:**
-```json
-{
-  "numeroConta": 1,
-  "nomeTitular": "João Silva",
-  "dataHoraConsulta": "2026-01-29T15:30:00",
-  "saldo": 1000.00
-}
+```http
+GET /api/conta-corrente/saldo
+Authorization: Bearer {seu-token}
 ```
 
----
+### 5. Realizar transferência
 
-### 6️⃣ Fazer Transferência
+Primeiro crie uma segunda conta (repita os passos 1-3 com CPF diferente). Depois:
 
-Primeiro, crie uma **segunda conta** (repita passos 1-4 com CPF diferente).
+```http
+POST /api/transferencia
+Authorization: Bearer {seu-token}
+Content-Type: application/json
 
-**POST** `/api/transferencia` (API Transferência)
-```json
 {
   "idempotenciaKey": "transferencia-001",
   "numeroContaDestino": 2,
@@ -178,217 +135,120 @@ Primeiro, crie uma **segunda conta** (repita passos 1-4 com CPF diferente).
 }
 ```
 
-**O que acontece:**
-1. ✅ Débito de R$ 100 na conta 1
-2. ✅ Crédito de R$ 100 na conta 2
-3. ✅ Kafka: Mensagem "transferencia-realizada"
-4. ✅ Worker Tarifas processa
-5. ✅ Kafka: Mensagem "tarifacao-realizada"
-6. ✅ Débito de R$ 2 na conta 1 (tarifa)
+**O que acontece nos bastidores:**
 
-**Saldo final:**
-- Conta 1: R$ 898,00 (1000 - 100 - 2)
-- Conta 2: R$ 100,00
+1. Débito de R$ 100 na conta origem
+2. Crédito de R$ 100 na conta destino
+3. Publicação do evento no Kafka
+4. Worker processa a tarifa (R$ 2)
+5. Débito da tarifa na conta origem
 
----
+**Resultado:** Conta origem fica com R$ 898 (1000 - 100 - 2)
 
-## 🧪 Testando Idempotência
-
-Repita a **mesma transferência** com a **mesma chave**:
-```json
-{
-  "idempotenciaKey": "transferencia-001",
-  "numeroContaDestino": 2,
-  "valor": 100.00
-}
-```
-
-**Resultado:** HTTP 204, mas **não executa novamente**!
-
-O saldo permanece o mesmo. ✅
-
----
-
-## 🎯 Padrões e Conceitos Implementados
+## Decisões de Arquitetura
 
 ### Clean Architecture
+
+O projeto segue a separação em camadas proposta por Robert C. Martin:
+
 ```
-API → Infrastructure → Application → Domain
-         ↓              ↓              ↓
-    Dapper, Kafka   Handlers      Entidades
+Domain (núcleo) 
+  ↓
+Application (casos de uso)
+  ↓
+Infrastructure (detalhes técnicos)
+  ↓
+API (entrega)
 ```
 
-### CQRS
-- **Commands**: Alteram estado (Create, Update, Delete)
-- **Queries**: Apenas leitura (Read)
-- **MediatR**: Desacopla Controllers de Handlers
+Essa estrutura garante que as regras de negócio sejam independentes de frameworks, UI ou banco de dados.
 
-### DDD
-- **Entidades**: ContaCorrente, Transferencia
-- **Value Objects**: Cpf, Senha
-- **Repositories**: Abstração de persistência
-- **Services**: Lógica que não cabe em entidade (SaldoService)
+### CQRS com MediatR
+
+Commands e Queries são separados, cada um com seu handler específico. Isso simplifica o código e facilita a aplicação de responsabilidades diferentes para leitura e escrita.
+
+### Domain-Driven Design
+
+**Entidades:** ContaCorrente e Transferencia encapsulam regras de negócio  
+**Value Objects:** Cpf e Senha garantem validação em tempo de criação  
+**Domain Services:** SaldoService centraliza lógica que não pertence a uma única entidade  
+**Repositories:** Abstraem a persistência, permitindo trocar a implementação sem impactar o domínio
 
 ### Comunicação Assíncrona
-- **Kafka** para desacoplar serviços
-- **Producer/Consumer** para tarifas
+
+Kafka foi escolhido para desacoplar os serviços. O worker de tarifas não precisa estar disponível no momento da transferência - ele processa o evento quando possível, tornando o sistema mais resiliente.
 
 ### Segurança
-- **JWT** para autenticação
-- **BCrypt** para hash de senhas
-- **Validação de CPF** com algoritmo oficial
 
-### Resiliência
-- **Idempotência** em todas operações críticas
-- **Estorno automático** em transferências
-- **Health Checks** para orquestração
+- Senhas armazenadas com BCrypt (workfactor 12)
+- JWT com assinatura HS256 e validação rigorosa
+- Validação de CPF seguindo algoritmo oficial dos dígitos verificadores
+- Autorização obrigatória em endpoints de movimentação financeira
 
----
+### Idempotência
 
-## 📂 Estrutura do Projeto
+Todas as operações críticas (movimentações e transferências) utilizam uma chave de idempotência. Requisições duplicadas com a mesma chave são ignoradas, evitando débitos/créditos em duplicidade.
+
+## Estrutura do Código
+
 ```
 BankMore/
 ├── src/
-│   ├── Shared/                          # Kernel compartilhado
-│   │   └── BankMore.Shared/
-│   ├── ContaCorrente/                   # API Conta Corrente
+│   ├── Shared/
+│   │   └── BankMore.Shared/              # Contratos e utilitários compartilhados
+│   ├── ContaCorrente/
+│   │   ├── Domain/                       # Entidades, VOs, interfaces
+│   │   ├── Application/                  # Handlers, DTOs, validações
+│   │   ├── Infrastructure/               # Repositórios, Kafka, DB
+│   │   └── API/                          # Controllers, configuração
+│   ├── Transferencia/
 │   │   ├── Domain/
 │   │   ├── Application/
 │   │   ├── Infrastructure/
 │   │   └── API/
-│   ├── Transferencia/                   # API Transferência
-│   │   ├── Domain/
-│   │   ├── Application/
-│   │   ├── Infrastructure/
-│   │   └── API/
-│   └── Tarifas/                         # Worker Tarifas
-│       └── Worker/
-├── tests/                               # Testes
-├── docker-compose.yml                   # Orquestração
-└── README.md
+│   └── Tarifas/
+│       └── Worker/                       # Consumer Kafka, processamento
+├── tests/
+│   ├── BankMore.ContaCorrente.Tests/
+│   └── BankMore.Transferencia.Tests/
+└── docker-compose.yml
 ```
 
----
+## Testes
 
-## 🧪 Executar Testes
+O projeto possui cobertura de testes unitários para as principais regras de negócio:
+
 ```bash
-# Executar todos os testes
 dotnet test
-
-# Executar com detalhes
-dotnet test --verbosity normal
 ```
 
-**Esperado:**
-```
-Total tests: 16
-     Passed: 16
-```
+**Cobertura atual:**
+- Value Objects (validações de CPF e senha)
+- Entidades (invariantes de domínio)
+- Domain Services (lógica de negócio)
+- Application Handlers (casos de uso)
+- Validação de idempotência
+- Fluxo de estorno
 
----
+Total: 29 testes passando
 
-## 🛑 Parar os Serviços
+
+## Deployment
+
+O projeto está pronto para containers. Para parar os serviços:
+
 ```bash
 docker-compose down
 ```
 
-**Para limpar volumes:**
+Para limpar volumes e recomeçar do zero:
+
 ```bash
 docker-compose down -v
 ```
 
----
-
-## 🚢 Preparado para Kubernetes
-
-Embora a entrega seja via Docker Compose, a aplicação está preparada para Kubernetes:
-
-- ✅ Health Checks configurados (`/health`)
-- ✅ Variáveis de ambiente externalizadas
-- ✅ Stateless (JWT)
-- ✅ Logs estruturados (stdout)
-- ✅ Graceful shutdown
-
-### Migrando para Kubernetes:
-
-Os recursos do Docker Compose mapeiam diretamente para K8s:
-
-| Docker Compose | Kubernetes |
-|----------------|------------|
-| `healthcheck` | `livenessProbe` / `readinessProbe` |
-| `environment` | `ConfigMap` / `Secret` |
-| `networks` | `Service` |
-| `volumes` | `PersistentVolumeClaim` |
-| `depends_on` | `initContainers` |
-
-Para escalar horizontalmente:
-```yaml
-replicas: 2
-```
+A aplicação possui health checks configurados e pode ser migrada para Kubernetes com ajustes mínimos nos manifests.
 
 ---
 
-## 👨‍💻 Detalhes Técnicos
-
-### Requisitos Implementados
-- ✅ APIs RESTful com .NET 8
-- ✅ Clean Architecture + DDD + CQRS
-- ✅ Princípios SOLID
-- ✅ Dapper para acesso a dados
-- ✅ Banco de dados SQLite
-- ✅ Autenticação JWT
-- ✅ Documentação Swagger
-- ✅ Kafka para comunicação assíncrona
-- ✅ Docker Compose
-- ✅ Testes unitários (16 testes)
-- ✅ Idempotência
-- ✅ Validação de CPF (algoritmo oficial)
-- ✅ Criptografia de senhas (BCrypt + Salt)
-- ✅ Health Checks
-
-### Destaques da Arquitetura
-- **Dependency Inversion**: Domain define interfaces, Infrastructure implementa
-- **Single Responsibility**: Cada classe tem uma responsabilidade
-- **Open/Closed**: Fácil adicionar novos handlers sem modificar código existente
-- **Value Objects**: Cpf e Senha encapsulam validação
-- **Factory Methods**: Create() para novas instâncias, Reconstruct() para persistência
-- **Repository Pattern**: Abstração de persistência
-- **Result Pattern**: Evita exceções para fluxos esperados
-
----
-
-## 📊 Cobertura de Testes
-
-- ✅ Value Objects (Cpf, Senha)
-- ✅ Entidades (ContaCorrente, Transferencia)
-- ✅ Serviços de Domínio (SaldoService)
-- ✅ Handlers (CreateAccount, CreateTransfer)
-- ✅ Validação de regras de negócio
-- ✅ Idempotência
-- ✅ Estorno automático
-
----
-
-## 🔒 Segurança
-
-- Senhas armazenadas com BCrypt (workfactor 12) + Salt
-- JWT com assinatura HS256
-- Validação de token com tolerância zero (ClockSkew = 0)
-- Validação de CPF com dígitos verificadores
-- Autorização em todos os endpoints sensíveis
-
----
-
-## 📞 Contato
-
-Desenvolvido como projeto de teste técnico para vaga de Desenvolvedor .NET C#.
-
-**Tecnologias:**
-- .NET 8, C#
-- Clean Architecture, DDD, CQRS
-- Dapper, SQLite
-- Kafka (KafkaFlow)
-- Docker, Docker Compose
-- JWT, BCrypt
-- Swagger, Serilog
-- xUnit, Moq, FluentAssertions
+**Desenvolvido como projeto técnico para demonstração de habilidades em arquitetura de microsserviços, padrões de design e boas práticas de desenvolvimento .NET.**
