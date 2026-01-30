@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\BankMore.Transferencia.Domain\BankMore.Transferencia.Domain.csproj" />
+    <ProjectReference Include="..\BankMore.Transferencia.Application\BankMore.Transferencia.Application.csproj" />
+    <ProjectReference Include="..\..\Shared\BankMore.Shared\BankMore.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dapper" Version="2.1.66" />
+    <PackageReference Include="KafkaFlow" Version="4.1.0" />
+    <PackageReference Include="KafkaFlow.Abstractions" Version="4.1.0" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Confluent.Kafka">
+      <HintPath>..\..\..\..\.nuget\packages\confluent.kafka\2.8.0\lib\net8.0\Confluent.Kafka.dll</HintPath>
+    </Reference>
+    <Reference Include="KafkaFlow">
+      <HintPath>..\..\..\..\.nuget\packages\kafkaflow\4.1.0\lib\netstandard2.0\KafkaFlow.dll</HintPath>
+    </Reference>
+    <Reference Include="KafkaFlow.Abstractions">
+      <HintPath>..\..\..\..\.nuget\packages\kafkaflow.abstractions\4.1.0\lib\netstandard2.0\KafkaFlow.Abstractions.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

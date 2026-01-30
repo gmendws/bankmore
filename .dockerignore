@@ -1,0 +1,16 @@
+**/.dockerignore
+**/.git
+**/.gitignore
+**/.vs
+**/.vscode
+**/.idea
+**/*.*proj.user
+**/*.dbmdl
+**/*.jfm
+**/bin
+**/obj
+**/out
+**/TestResults
+**/node_modules
+**/.DS_Store
+**/data

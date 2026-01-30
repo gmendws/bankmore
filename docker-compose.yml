@@ -1,0 +1,157 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # ZOOKEEPER - Gerenciador do Kafka
+  # ============================================
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: bankmore-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - bankmore-network
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # KAFKA - Message Broker
+  # ============================================
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: bankmore-kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    networks:
+      - bankmore-network
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  # ============================================
+  # API CONTA CORRENTE
+  # ============================================
+  api-conta-corrente:
+    build:
+      context: .
+      dockerfile: src/ContaCorrente/BankMore.ContaCorrente.API/Dockerfile
+    container_name: bankmore-api-contacorrente
+    ports:
+      - "5001:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/contacorrente.db
+      - Jwt__SecretKey=BankMoreSuperSecretKey123456789012345678901234567890
+      - Jwt__Issuer=BankMore.ContaCorrente.API
+      - Jwt__Audience=BankMore.APIs
+      - Jwt__ExpirationMinutes=60
+      - Kafka__BootstrapServers=kafka:9092
+    volumes:
+      - ./data/contacorrente:/app/data
+    networks:
+      - bankmore-network
+    depends_on:
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ============================================
+  # API TRANSFERÊNCIA
+  # ============================================
+  api-transferencia:
+    build:
+      context: .
+      dockerfile: src/Transferencia/BankMore.Transferencia.API/Dockerfile
+    container_name: bankmore-api-transferencia
+    ports:
+      - "5002:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/transferencia.db
+      - Jwt__SecretKey=BankMoreSuperSecretKey123456789012345678901234567890
+      - Jwt__Issuer=BankMore.ContaCorrente.API
+      - Jwt__Audience=BankMore.APIs
+      - Jwt__ExpirationMinutes=60
+      - Kafka__BootstrapServers=kafka:9092
+      - ContaCorrenteApi__BaseUrl=http://api-conta-corrente:8080
+    volumes:
+      - ./data/transferencia:/app/data
+    networks:
+      - bankmore-network
+    depends_on:
+      kafka:
+        condition: service_healthy
+      api-conta-corrente:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ============================================
+  # WORKER TARIFAS
+  # ============================================
+  worker-tarifas:
+    build:
+      context: .
+      dockerfile: src/Tarifas/BankMore.Tarifas.Worker/Dockerfile
+    container_name: bankmore-worker-tarifas
+    environment:
+      - DOTNET_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/tarifas.db
+      - Kafka__BootstrapServers=kafka:9092
+      - Kafka__ConsumerGroupId=tarifas-consumer-group-v2
+      - Kafka__TopicTransferenciasRealizadas=transferencias-realizadas
+      - Kafka__TopicTarifacoesRealizadas=tarifacoes-realizadas
+      - Tarifa__ValorTransferencia=2.00
+    volumes:
+      - ./data/tarifas:/app/data
+    networks:
+      - bankmore-network
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+# ============================================
+# REDE COMPARTILHADA
+# ============================================
+networks:
+  bankmore-network:
+    driver: bridge
+
+# ============================================
+# VOLUMES PERSISTENTES
+# ============================================
+volumes:
+  contacorrente-data:
+  transferencia-data:
+  tarifas-data:
